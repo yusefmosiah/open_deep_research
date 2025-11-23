@@ -310,13 +310,27 @@ async def compose_essay(state: AgentState, config: RunnableConfig) -> dict:
 
     return {"final_report": "Error composing essay: Maximum retries exceeded", "messages": [AIMessage(content="Essay generation failed after retries")], **cleared_state}
 
+# Build researcher subgraph
+researcher_builder = StateGraph(
+    ResearcherState,
+    output=ResearcherOutputState,
+    config_schema=Configuration,
+)
+researcher_builder.add_node("researcher", researcher)
+researcher_builder.add_node("researcher_tools", researcher_tools)
+researcher_builder.add_node("compress_research", compress_research)
+researcher_builder.add_edge(START, "researcher")
+researcher_builder.add_edge("compress_research", END)
+researcher_subgraph = researcher_builder.compile()
+
+
 
 # Build supervisor subgraph
 supervisor_builder = StateGraph(SupervisorState, config_schema=Configuration)
 supervisor_builder.add_node("supervisor", supervisor)
 supervisor_builder.add_node("supervisor_tools", supervisor_tools)
 supervisor_builder.add_edge(START, "supervisor")
-researcher_subgraph = supervisor_builder.compile()
+supervisor_subgraph = supervisor_builder.compile()
 
 
 # Build main essay writer graph
@@ -331,4 +345,3 @@ essay_writer_builder.add_edge("essay_supervisor", "compose_essay")
 essay_writer_builder.add_edge("compose_essay", END)
 
 essay_writer = essay_writer_builder.compile()
-

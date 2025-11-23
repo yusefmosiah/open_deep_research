@@ -21,12 +21,21 @@ This guide documents the new Essay Writer graph, the parametric CLI (`scripts/ca
 - Graphs available: `Deep Researcher`, `Essay Writer`.
 
 ## HTTP API (direct)
-- Non‑stream invoke:
-  - `POST /api/graphs/{graph}/invoke`
-  - Body: `{ "input": {"messages": [{"type": "human", "content": "..."}]}, "config": {"configurable": {"thread_id": "t1"}} }`
-- Streaming events:
-  - `POST /api/graphs/{graph}/stream` (keep‑alive)
-  - Use `curl -sN` to view node events (on_node_start/on_node_end, final state).
+Your server exposes the new LangGraph Server endpoints (no `/api/graphs`). Use assistants + runs:
+
+- Threadless streaming run (simplest):
+  - `POST /runs/stream`
+  - Body:
+    `{ "assistant_id": "Essay Writer", "input": {"messages": [{"role": "human", "content": "..."}]}, "stream_mode": "messages-tuple" }`
+
+- Threaded run (non‑stream then wait):
+  1. `POST /threads` with `{ "configurable": {"thread_id": "t1"} }`
+  2. `POST /threads/{thread_id}/runs` with `{ "assistant_id": "Essay Writer", "input": { ... } }` → returns `run_id`
+  3. `POST /threads/{thread_id}/runs/wait` with `{ "run_id": "..." }` → returns final state
+
+- Threaded streaming run:
+  - `POST /threads/{thread_id}/runs/stream` with `{ "assistant_id": "Essay Writer", "input": { ... } }`
+  - Pipe NDJSON to `jq -r 'select(.event=="on_chain_end") | .data.output.final_report'`
 
 ## Parametric CLI: `scripts/call_api.py`
 - Non‑stream:
@@ -62,4 +71,3 @@ This guide documents the new Essay Writer graph, the parametric CLI (`scripts/ca
 - Swap in essay‑specific prompts for outline and composition.
 - Add a dedicated `WriteSection` tool to draft per‑section text.
 - Introduce a structured outline schema (sections, claims, evidence) for more controlled drafting.
-
